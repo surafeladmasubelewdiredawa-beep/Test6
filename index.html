@@ -1,0 +1,1627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- Title & Favicon -->
+    <title>Attendance System</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📖</text></svg>">
+    
+    <!-- PWA Manifest (For Install) -->
+    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkF0dGVuZGFuY2UgU3lzdGVtIiwKICAic2hvcnRfbmFtZSI6ICJBdHRlbmRhbmNlIiwKICAic3RhcnRfdXJsIjogIi4iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiMwMDAiLAogICJ0aGVtZV9jb2xvciI6ICIjM0MwMDI4IiwKICAiaWNvbnMiOiBbCiAgICB7CiAgICAgICJzcmMiOiAiZGF0YTppbWFnZS9zdmcreG1sLCUzQ3N2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxMDAgMTAwJyUzRSUzQ3RleHQgeT0nLjllbScgZm9udC1zaXplPSc5MCclM0XihpIlM0MvdGV4dCUzRSUzQy9zdmclM0UiLAogICAgICAic2l6ZXMiOiAiMTkyeDE5MiIsCiAgICAgICJ0eXBlIjogImltYWdlL3N2Zyt4bWwiCiAgICB9CiAgXQp9">
+    <meta name="theme-color" content="#3C0028">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    
+    <style>
+        /* CSS Styles Remain Unchanged */
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body{
+            content: "";
+            position: fixed;
+            inset: 0;
+            backdrop-filter: blur(10px);
+            background-color: #000; /* Fallback */
+            background-image: url('Bg.bg'); /* Keep your bg image if needed */
+            z-index: -1;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        .btn {
+            border:none;
+            border-radius:50%;
+            cursor:pointer;
+            display:flex; align-items:center; justify-content:center;
+            transition:all 0.3s ease;
+            box-shadow:0 4px 8px rgba(0,0,0,0.3);
+            background: #E6B800;
+            color: #3C0028;
+            font-size:26px; font-weight:600;
+            user-select: none;
+        }
+        
+        .top-right { position:absolute; top:20px; right:20px; display:flex; flex-direction:column; gap:15px; z-index:10; }
+        .top-left { position:absolute; top:20px; left:20px; z-index:10; }
+        
+        .center { 
+            position:absolute; 
+            top:80%; 
+            left:50%; 
+            transform:translateX(-50%); 
+            display:flex; 
+            gap: 140px; 
+            align-items: center; 
+            justify-content: center; 
+            z-index:10; 
+        }
+        
+        .top-right .btn { width:50px; height:50px; font-size:20px; }
+        .center .btn { width:100px; height:100px; font-size:44px; }
+
+        .btn:hover { transform:translateY(-3px); box-shadow:0 6px 12px rgba(0,0,0,0.5); background: #d4a800; }
+        .btn:active { transform:translateY(1px) scale(0.95); box-shadow:0 2px 4px rgba(0,0,0,0.4); background: #c49900; }
+
+        #toggle-scan-btn.camera-running {
+            background: #b71c1c; 
+            color: white;
+            box-shadow: 0 0 15px rgba(183, 28, 28, 0.6);
+        }
+        #toggle-scan-btn.camera-running:hover {
+            background: #d32f2f;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            filter: grayscale(100%);
+            pointer-events: none;
+        }
+
+        .countdown {
+            color: #3C0028; font-size: 48px; font-weight: bold;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0;
+            transition: all 0.4s ease; pointer-events: none; z-index: 12;
+            cursor: pointer;
+        }
+        .countdown.active { opacity:1; pointer-events: auto;}
+        .countdown.warning {
+            color:#ff4d4d;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse { 0%{transform:scale(1);} 50%{transform:scale(1.12);} 100%{transform:scale(1);} }
+
+        .list-overlay {
+            position:fixed; inset:0; background:rgba(0,0,0,0.95); z-index:100;
+            display:flex; flex-direction:column; opacity:0; visibility:hidden;
+            transition:opacity 0.3s ease, visibility 0.3s ease; padding-top:100px;
+        }
+        .list-overlay.active { opacity:1; visibility:visible; }
+        
+        .overlay-top-right { 
+            position:absolute; 
+            top:20px; 
+            right:20px; 
+            display:flex; 
+            gap:15px; 
+            z-index:250;
+        }
+        .overlay-btn {
+            width:50px; height:50px; font-size:20px; font-weight:600;
+            background: #E6B800;
+            color: #3C0028;
+            border:none; border-radius:50%; cursor:pointer;
+            transition: 0.2s;
+        }
+        .overlay-btn:hover { background: #d4a800; }
+        
+        .move-btn {
+            background: #3C0028;
+            color: #E6B800;
+            font-size: 18px;
+        }
+        .move-btn:hover { background: #5a0040; }
+
+        .table-container { 
+            width: 100%; 
+            overflow-x: auto; 
+            overflow-y: auto;
+            background: #000;
+            flex-grow:1;
+        }
+
+        table { 
+            width: max-content;
+            min-width: 100%; 
+            border-collapse:collapse; 
+            color:#ddd; 
+            table-layout: fixed;
+            background-color: #080808;
+        }
+        
+        th, td {
+            padding:10px 5px; 
+            text-align:center; 
+            border-bottom:1px solid rgba(255,255,255,0.08);
+            white-space:nowrap; 
+            overflow:hidden; 
+            text-overflow:ellipsis;
+            font-size: 0.9rem;
+        }
+
+        th { 
+            background: #3C0028 !important; 
+            position:sticky; top:0; 
+            font-weight:600; 
+            color: #E6B800;
+            border-bottom: 1px solid #333;
+            z-index: 50; 
+        }
+
+        th:nth-child(1), td:nth-child(1) { width: 40px; }
+        th:nth-child(2), td:nth-child(2) { 
+            width: 180px;     
+            text-align: left; 
+            padding-left: 10px; 
+        }
+        th:nth-child(3), td:nth-child(3) { width: 80px; }
+
+        th:nth-child(n+4):nth-child(-n+29), 
+        td:nth-child(n+4):nth_child(-n+29) { 
+            width: 55px; 
+            font-size: 0.85rem; 
+            color: #aaa; 
+            background-color: #080808;
+        }
+
+        th:nth-child(30) { background: #3C0028 !important; color: #E6B800; border-left: 2px solid #333; }
+        th:nth-child(30), td:nth-child(30) { width: 80px; }
+        td:nth-child(30) { background: #0f0f0f; color: #00ff9d; font-weight: bold; border-left: 2px solid #333; }
+
+        th:nth-child(31) { background: #3C0028 !important; color: #E6B800; border-left: 2px solid #333; }
+        th:nth-child(31), td:nth-child(31) { width: 80px; }
+        td:nth-child(31) { background: #0f0f0f; color: #00ff9d; font-weight: bold; border-left: 2px solid #333; }
+
+        th:nth-child(2), td:nth-child(2) {
+            position: sticky;
+            left: 0;
+            background-color: #080808;
+            z-index: 100;
+            border-right: 2px solid #444;
+        }
+
+        th:nth-child(2) {
+            background-color: #3C0028 !important;
+            z-index: 150;
+        }
+
+        tr:hover { background: rgba(255,255,255,0.05); }
+        
+        td:nth-child(2):hover {
+            background-color: rgba(255, 255, 255, 0.05) !important;
+        }
+
+        td.mark-cell { cursor: pointer; transition: background 0.2s; font-weight: bold; }
+        td.mark-cell:hover { background: rgba(255, 255, 255, 0.05); }
+        td.mark-cell.disabled { cursor: not-allowed; opacity: 0.6; }
+        td.mark-cell.disabled:hover { background: transparent; }
+
+        .context-menu {
+            position: fixed; 
+            background: #1a1a1a; 
+            border: 1px solid #333; 
+            border-radius: 12px;
+            padding: 10px; 
+            display: none; 
+            flex-direction: column; 
+            gap: 10px;
+            width: 200px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5); 
+            z-index: 300;
+            animation: popIn 0.2s ease-out;
+        }
+        .context-menu.active { display: flex; }
+        .menu-item {
+            background: #252525; color: #fff; border: none; padding: 12px; border-radius: 8px;
+            cursor: pointer; text-align: left; display: flex; align-items: center; gap: 10px;
+            font-size: 0.95rem; transition: background 0.2s;
+        }
+        .menu-item:hover { background: #333; }
+        .menu-item i { color: #E6B800; }
+
+        .settings-panel {
+            position: fixed;
+            top: 0; right: -300px; 
+            width: 280px; height: 100%;
+            background: #111;
+            border-left: 1px solid #333;
+            z-index: 400;
+            transition: right 0.3s ease;
+            display: flex; flex-direction: column;
+            box-shadow: -5px 0 20px rgba(0,0,0,0.5);
+        }
+        .settings-panel.active { right: 0; }
+        .settings-header {
+            padding: 20px; border-bottom: 1px solid #222;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .settings-title { color: #fff; font-size: 1.2rem; font-weight: 600; }
+        .settings-close { background: none; border: none; color: #aaa; font-size: 1.5rem; cursor: pointer; }
+        .settings-body { padding: 20px; display: flex; flex-direction: column; gap: 15px; }
+        
+        .settings-menu-item {
+            display: flex; align-items: center; gap: 15px; padding: 15px;
+            background: #222; border-radius: 8px; color: #ddd; cursor: pointer;
+            transition: all 0.2s;
+        }
+        .settings-menu-item:hover { background: #2a2a2a; color: #fff; }
+        .settings-menu-item i { color: #E6B800; font-size: 1.1rem; width: 20px; text-align: center; }
+
+        .form-modal, #confirm-modal, #title-popup-modal, #history-modal, #history-view-modal {
+            position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:200;
+            display:none; align-items:center; justify-content:center;
+            backdrop-filter: blur(5px);
+        }
+        .form-modal.active, #confirm-modal.active, #title-popup-modal.active, #history-modal.active, #history-view-modal.active { display:flex; }
+        
+        .form-container, .confirm-content, .title-popup-content {
+            background:#111; padding:40px; border-radius:16px;
+            width:90%; max-width:480px; box-shadow:0 10px 30px rgba(0,0,0,0.6);
+            border:1px solid #333; animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .history-modal-content {
+            background:#111; padding:20px; border-radius:16px;
+            width:95%; max-width:800px; height: 85vh; 
+            box-shadow:0 10px 30px rgba(0,0,0,0.6);
+            border:1px solid #333; animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex; flex-direction: column;
+        }
+        .history-list-container {
+            flex: 1; overflow-y: auto; margin-top: 20px;
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 15px; align-content: start;
+        }
+        .history-item {
+            background: #1a1a1a; border: 1px solid #333; border-radius: 8px;
+            padding: 15px; cursor: pointer;
+            display: flex; flex-direction: column; justify-content: space-between;
+            transition: background 0.2s; height: 140px;
+        }
+        .history-item:hover { background: #222; border-color: #E6B800; }
+        .history-item-info { display: flex; flex-direction: column; gap: 5px; }
+        .history-item-title { color: #fff; font-weight: 600; font-size: 1rem; }
+        .history-item-date { color: #aaa; font-size: 0.8rem; }
+        .history-item-count { color: #E6B800; font-size: 0.9rem; margin-top: auto; }
+        .history-item-actions { display: flex; gap: 8px; margin-top: 10px; }
+        .history-action-btn {
+            flex: 1; padding: 6px; border-radius: 6px; border: none; cursor: pointer; 
+            font-size: 0.8rem; font-weight: 600; text-align: center;
+            display: flex; align-items: center; justify-content: center; gap: 5px;
+        }
+        .h-view { background: #333; color: #fff; }
+        .h-view:hover { background: #444; }
+        .h-download { background: #E6B800; color: #3C0028; }
+        .h-download:hover { background: #d4a800; }
+        .h-delete { background: #b71c1c; color: white; }
+        .h-delete:hover { filter: brightness(1.15); }
+
+        .history-view-content {
+            background:#000; padding:0; border-radius:12px;
+            width:95%; height: 90vh; 
+            box-shadow:0 10px 30px rgba(0,0,0,0.6);
+            border:1px solid #333;
+            display: flex; flex-direction: column; overflow: hidden;
+        }
+        .history-view-header {
+            padding: 15px 20px; background: #111; border-bottom: 1px solid #333;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .history-view-title { color: #fff; font-weight: 600; }
+        .history-view-close { background: none; border: none; color: #aaa; font-size: 1.5rem; cursor: pointer; }
+        .history-table-container { flex: 1; overflow: auto; }
+
+        .form-title { font-size:1.6rem; margin-bottom:28px; text-align:center; color:#eee; }
+        .form-group { margin-bottom:20px; position: relative; }
+        label { display:block; margin-bottom:8px; font-size:0.95rem; color:#ccc; }
+        input[type="text"], input[type="tel"] {
+            width:100%; padding:12px 16px; border:none; border-radius:8px;
+            background:#222; color:#eee; font-size:1rem; transition: background 0.2s;
+        }
+        input:focus { outline:none; background:#2a2a2a; box-shadow:0 0 0 2px #555; }
+        .gender-options { display: flex; gap: 15px; }
+        .gender-btn {
+            flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #333;
+            background: #222; color: #aaa; font-size: 1rem; cursor: pointer; transition: all 0.2s ease;
+        }
+        .gender-btn:hover { background: #2a2a2a; color: #fff; }
+        .gender-btn.selected { background: #444; color: #fff; border-color: #666; box-shadow: 0 0 0 2px #555; }
+        .form-buttons { display:flex; gap:16px; margin-top:32px; }
+        .submit-btn, .cancel-btn {
+            flex:1; padding:14px; border:none; border-radius:10px;
+            font-size:1.1rem; cursor:pointer; font-weight: 600;
+        }
+        .submit-btn { background:#E6B800; color:#3C0028; transition: background 0.2s; }
+        .submit-btn:hover { background:#d4a800; }
+        .cancel-btn { background:#222; color:#ccc; border: 1px solid #333; transition: background 0.2s; }
+        .cancel-btn:hover { background:#333; }
+
+        #detail-popup {
+            position:fixed; inset:0; background:rgba(0,0,0,0.85);
+            display:none; align-items:center; justify-content:center;
+            z-index:250; backdrop-filter:blur(4px);
+        }
+        #detail-popup.active { display:flex; }
+        .popup-content {
+            background:#111; border:1px solid #444; border-radius:12px;
+            padding:18px; width:90%; max-width:300px;
+            box-shadow:0 8px 25px rgba(0,0,0,0.7); position:relative;
+            animation:popIn 0.25s ease-out;
+        }
+        .popup-close { position:absolute; top:8px; right:12px; background:none; border:none; color:#aaa; font-size:1.5rem; cursor:pointer; }
+        .popup-close:hover { color:#fff; }
+        .popup-title { text-align:center; margin-bottom:16px; font-size:1.2rem; color:#eee; }
+        .popup-field { margin-bottom:12px; }
+        .popup-label { display:block; font-size:0.85rem; color:#aaa; margin-bottom:4px; }
+        .popup-value { background:#1a1a1a; padding:8px 10px; border-radius:6px; font-size:0.95rem; color:#eee; word-break:break-word; line-height:1.3; }
+        .popup-actions { margin-top: 24px; display: flex; gap: 12px; }
+        .popup-actions button { flex: 1; padding: 12px; font-size: 1rem; border: none; border-radius: 8px; cursor: pointer; transition: all 0.2s; font-weight: 600; }
+        .popup-actions .delete-btn { background: #b71c1c; color: white; }
+        .popup-actions .delete-btn:hover { filter: brightness(1.15); }
+
+        .confirm-content, .title-popup-content {
+            padding: 24px 28px;
+            max-width: 380px; 
+            text-align: center;
+        }
+        .confirm-title { font-size: 1.2rem; color: #eee; margin-bottom: 18px; line-height: 1.4; }
+        .confirm-name { color: #E6B800; font-weight: 600; word-break: break-word; }
+        .confirm-buttons { display: flex; gap: 16px; margin-top: 24px; }
+        .confirm-btn { flex: 1; padding: 12px; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .confirm-yes { background: #b71c1c; color: white; }
+        .confirm-yes:hover { filter: brightness(1.15); }
+        .confirm-no { background: #E6B800; color: #3C0028; }
+        .confirm-no:hover { background: #d4a800; }
+
+        .title-popup-content h3 { margin-bottom: 20px; color: #eee; }
+        .title-popup-content input { margin-bottom: 15px; text-align: center; }
+        .title-popup-btns { display: flex; gap: 12px; margin-top: 20px; }
+        .title-popup-btns button { flex: 1; padding: 10px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; transition: all 0.2s; }
+        .title-download-btn { background: #E6B800; color: #3C0028; }
+        .title-download-btn:hover { background: #d4a800; }
+        .title-cancel-btn { background: #333; color: #ddd; }
+        .title-cancel-btn:hover { background: #444; }
+
+        #camera-modal {
+            position: fixed; 
+            inset: 0; 
+            background: #000; 
+            z-index: 0; 
+            display: none; 
+            flex-direction: column;
+            pointer-events: none; 
+        }
+        #camera-modal.active { display: flex; }
+        #camera-feed { 
+            flex: 1; 
+            width: 100%; 
+            height: 100%; 
+            object-fit: cover; 
+        }
+
+        .toast {
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+            background: #333; color: white; padding: 12px 24px; border-radius: 30px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5); font-size: 0.9rem;
+            opacity: 0; visibility: hidden; transition: 0.3s; z-index: 600;
+        }
+        .toast.show { opacity: 1; visibility: visible; bottom: 40px; }
+
+        #process-image { display: none; }
+
+        @keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+
+        @media (max-width:600px) {
+            .center { gap:80px; }
+            .center .btn { width:90px; height:90px; font-size:38px; }
+            .overlay-btn { width:45px; height:45px; font-size:16px; }
+            .top-right .btn { width:45px; height:45px; font-size:18px; }
+            .countdown { width:70px; height:70px; font-size:32px; }
+            .table-container { padding:0 6px; }
+            .form-container { padding: 25px; }
+            th, td { padding:8px 6px; font-size:0.92rem; }
+            .history-modal-content { width: 100%; height: 100%; border-radius: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="top-left">
+        <div id="countdown-timer" class="countdown">
+            <span id="countdown-number">20</span>
+        </div>
+    </div>
+
+    <div class="top-right">
+        <button class="btn" id="list-btn"><i class="fa-solid fa-list"></i></button>
+        <button class="btn" id="setting-btn"><i class="fa-solid fa-gear"></i></button>
+    </div>
+
+    <!-- Settings Side Panel -->
+    <div id="settings-panel" class="settings-panel">
+        <div class="settings-header">
+            <span class="settings-title">Settings</span>
+            <button class="settings-close" id="settings-close-btn">&times;</button>
+        </div>
+        <div class="settings-body">
+            <div class="settings-menu-item" id="opt-history">
+                <i class="fa-solid fa-clock-rotate-left"></i>
+                <span>Student List History</span>
+            </div>
+            <!-- Clear Data Button for testing persistence -->
+            <div class="settings-menu-item" id="opt-clear-data" style="color:#ff4d4d;">
+                <i class="fa-solid fa-trash" style="color:#ff4d4d;"></i>
+                <span>Reset All Data</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="center">
+        <button class="btn" id="toggle-scan-btn" title="Attendance Camera">
+            <i class="fa-solid fa-camera"></i>
+        </button>
+        
+        <button class="btn" id="file-btn" title="Attendance File Scan">
+            <i class="fa-solid fa-file-image"></i>
+        </button>
+    </div>
+
+    <div id="list-overlay" class="list-overlay">
+        <div class="overlay-top-right">
+            <button class="overlay-btn move-btn" id="move-history-btn" title="Move to History">
+                <span style="font-size:16px; font-weight:bold;">M</span>
+            </button>
+            <button class="overlay-btn" id="export-menu-btn" title="Export Options">
+                <i class="fa-solid fa-download"></i>
+            </button>
+            <button class="overlay-btn" id="register-menu-btn"><i class="fa-solid fa-user-plus"></i></button>
+            <button class="overlay-btn" id="close-list"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        
+        <div id="export-context-menu" class="context-menu">
+            <button class="menu-item" id="opt-docx">
+                <i class="fa-solid fa-file-word"></i> DOCX
+            </button>
+            <button class="menu-item" id="opt-pdf">
+                <i class="fa-solid fa-file-pdf"></i>  PDF
+            </button>
+        </div>
+        
+        <div id="reg-context-menu" class="context-menu">
+            <button class="menu-item" id="opt-manual">
+                <i class="fa-solid fa-pen-to-square"></i> Manual Form
+            </button>
+            <button class="menu-item" id="opt-qr-file">
+                <i class="fa-solid fa-file-image"></i> QR File
+            </button>
+            <button class="menu-item" id="opt-qr-camera">
+                <i class="fa-solid fa-camera"></i> Camera Scan
+            </button>
+        </div>
+
+        <div class="table-container">
+            <table id="main-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Full Name</th>
+                        <th>Gender</th>
+                        <th>M1</th><th>M2</th><th>M3</th><th>M4</th><th>M5</th><th>M6</th><th>M7</th><th>M8</th><th>M9</th><th>M10</th>
+                        <th>M11</th><th>M12</th><th>M13</th><th>M14</th><th>M15</th><th>M16</th><th>M17</th><th>M18</th><th>M19</th><th>M20</th><th>M21</th><th>M22</th><th>M23</th><th>M24</th><th>M25</th><th>M26</th>
+                        <th>TM</th>
+                        <th>%</th>
+                    </tr>
+                </thead>
+                <tbody id="student-table-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <input type="file" id="qr-hidden-input" accept="image/*" style="display: none;">
+    <img id="process-image" alt="" style="display:none;">
+
+    <div id="form-modal" class="form-modal">
+        <div class="form-container">
+            <h2 class="form-title">Student Registration</h2>
+            <form id="student-form">
+                <div class="form-group"><input type="text" id="church-name" placeholder="Church Name"></div>
+                <div class="form-group"><input type="text" id="christ-name" placeholder="Christian Name"></div>
+                <div class="form-group"><input type="text" id="first-name" placeholder="First Name" required></div>
+                <div class="form-group"><input type="text" id="last-name" placeholder="Last Name" required></div>
+                <div class="form-group">
+                    <label>Gender</label>
+                    <div class="gender-options">
+                        <button type="button" class="gender-btn" data-value="Male">Male</button>
+                        <button type="button" class="gender-btn" data-value="Female">Female</button>
+                    </div>
+                    <input type="hidden" id="gender" required>
+                </div>
+                <div class="form-group"><input type="tel" id="phone" placeholder="Phone Number" required></div>
+                <div class="form-buttons">
+                    <button type="submit" class="submit-btn">Register</button>
+                    <button type="button" class="cancel-btn" id="cancel-register">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="detail-popup">
+        <div class="popup-content">
+            <button class="popup-close">×</button>
+            <h3 class="popup-title">Student Information</h3>
+            <div class="popup-field"><span class="popup-label">Church Name</span><div class="popup-value" id="detail-church"></div></div>
+            <div class="popup-field"><span class="popup-label">Christian Name</span><div class="popup-value" id="detail-christ"></div></div>
+            <div class="popup-field"><span class="popup-label">Full Name</span><div class="popup-value" id="detail-fullname"></div></div>
+            <div class="popup-field"><span class="popup-label">Gender</span><div class="popup-value" id="detail-gender"></div></div>
+            <div class="popup-field"><span class="popup-label">Phone</span><div class="popup-value" id="detail-phone"></div></div>
+            <div class="popup-field"><span class="popup-label">Date</span><div class="popup-value" id="detail-date"></div></div>
+            <div class="popup-field"><span class="popup-label">Time</span><div class="popup-value" id="detail-time"></div></div>
+            <div class="popup-actions">
+                <button type="button" id="popup-delete-btn" class="delete-btn">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="confirm-modal">
+        <div class="confirm-content">
+            <div class="confirm-title">
+                Are you sure you want to delete this student?<br>
+                <span class="confirm-name" id="confirm-student-name"></span>
+            </div>
+            <div class="confirm-buttons">
+                <button class="confirm-btn confirm-yes" id="confirm-yes-btn">Yes</button>
+                <button class="confirm-btn confirm-no" id="confirm-no-btn">No</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Title Popup Modal -->
+    <div id="title-popup-modal">
+        <div class="title-popup-content">
+            <h3>Export Document</h3>
+            <input type="text" id="doc-page-title" placeholder="Page Title (Inside Document)" value="Title2">
+            <input type="text" id="doc-file-title" placeholder="File Name (For Download)" value="Title2">
+            <div class="title-popup-btns">
+                <button class="title-cancel-btn" id="title-cancel-btn">Cancel</button>
+                <button class="title-download-btn" id="title-download-btn">Download</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- History List Modal -->
+    <div id="history-modal">
+        <div class="history-modal-content">
+            <div class="settings-header">
+                <span class="settings-title">Student List History</span>
+                <button class="settings-close" id="history-close-btn">&times;</button>
+            </div>
+            <div class="history-list-container" id="history-list-container"></div>
+        </div>
+    </div>
+
+    <!-- History View Modal -->
+    <div id="history-view-modal">
+        <div class="history-view-content">
+            <div class="history-view-header">
+                <span class="history-view-title" id="h-view-title">Archived List</span>
+                <button class="history-view-close" id="history-view-close-btn">&times;</button>
+            </div>
+            <div class="history-table-container" id="history-table-container"></div>
+        </div>
+    </div>
+
+    <div id="camera-modal">
+        <video id="camera-feed" autoplay playsinline muted></video>
+        <canvas id="camera-canvas" style="display:none;"></canvas>
+    </div>
+
+    <div id="toast" class="toast">Action Successful</div>
+
+    <script>
+        // --- PWA Service Worker Registration (For Install Prompt) ---
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('data:text/javascript,self.addEventListener("fetch", e => e.respondWith(fetch(e.request)))').then(reg => {
+                console.log('SW Registered');
+            }).catch(err => console.log('SW Failed', err));
+        }
+
+        // Utilities
+        const animateButton = (btn) => {
+            btn.style.transform = 'scale(0.92)';
+            setTimeout(() => btn.style.transform = '', 140);
+        };
+
+        const showToast = (msg) => {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 3200);
+        };
+
+        // --- PERSISTENCE LOGIC (Local Storage) ---
+        function saveData() {
+            const rows = document.querySelectorAll('#student-table-body tr');
+            const data = [];
+            rows.forEach(row => {
+                // Extract marks (M1-M26)
+                let marks = [];
+                for(let i=3; i<=28; i++) {
+                    marks.push({
+                        html: row.cells[i].innerHTML,
+                        value: row.cells[i].dataset.value || '',
+                        title: row.cells[i].title || ''
+                    });
+                }
+                
+                data.push({
+                    name: row.cells[1].textContent,
+                    gender: row.cells[2].textContent,
+                    church: row.dataset.church || '',
+                    christ: row.dataset.christ || '',
+                    fullname: row.dataset.fullname || '',
+                    phone: row.dataset.phone || '',
+                    date: row.dataset.date || '',
+                    time: row.dataset.time || '',
+                    startMark: row.dataset.startMark || 1,
+                    marks: marks,
+                    total: row.cells[29].textContent,
+                    percent: row.cells[30].textContent
+                });
+            });
+            localStorage.setItem('attendanceData', JSON.stringify(data));
+            
+            // Save current attendance state
+            localStorage.setItem('attendanceState', JSON.stringify({
+                currentMark: currentAttendanceMark,
+                isOpen: isAttendanceOpen,
+                markedSet: Array.from(markedThisMark)
+            }));
+        }
+
+        function loadData() {
+            const data = JSON.parse(localStorage.getItem('attendanceData') || '[]');
+            const state = JSON.parse(localStorage.getItem('attendanceState') || null);
+            
+            tableBody.innerHTML = ''; // Clear current
+            
+            data.forEach((s, index) => {
+                const row = document.createElement('tr');
+                let marksHTML = '';
+                
+                // Reconstruct marks
+                s.marks.forEach(m => {
+                    marksHTML += `<td data-value="${m.value}" title="${m.title}">${m.html}</td>`;
+                });
+                
+                row.innerHTML = `<td>${index+1}</td><td>${s.name}</td><td>${s.gender}</td>${marksHTML}<td>${s.total}</td><td>${s.percent}</td>`;
+                
+                row.dataset.church = s.church;
+                row.dataset.christ = s.christ;
+                row.dataset.fullname = s.fullname;
+                row.dataset.phone = s.phone;
+                row.dataset.date = s.date;
+                row.dataset.time = s.time;
+                row.dataset.startMark = s.startMark;
+                
+                tableBody.appendChild(row);
+            });
+
+            // Restore state
+            if(state) {
+                currentAttendanceMark = state.currentMark;
+                markedThisMark = new Set(state.markedSet || []);
+                if(state.isOpen) {
+                    // Optionally auto-resume or just reset
+                    // For safety, we reset the timer on refresh
+                    isAttendanceOpen = false; 
+                }
+            }
+        }
+
+        // Elements
+        const toggleScanBtn = document.getElementById('toggle-scan-btn');
+        const fileBtn = document.getElementById('file-btn');
+        const iconCamera = '<i class="fa-solid fa-camera"></i>';
+        const iconStop = '<i class="fa-solid fa-stop"></i>';
+        const countdownEl = document.getElementById('countdown-timer');
+        const countdownNumber = document.getElementById('countdown-number');
+        let countdownInterval = null;
+        let currentAttendanceMark = null;
+        let markedThisMark = new Set();
+        let isAttendanceOpen = false; 
+
+        // Countdown Logic
+        function startAttendanceCountdown() {
+            if (!countdownEl || countdownInterval || isAttendanceOpen) return;
+
+            isAttendanceOpen = true; 
+            let timeLeft = 20;
+            
+            countdownNumber.textContent = timeLeft;
+            countdownEl.classList.add('active');
+            countdownEl.classList.remove('warning');
+
+            countdownInterval = setInterval(() => {
+                timeLeft--;
+                countdownNumber.textContent = timeLeft;
+
+                if (timeLeft <= 5) countdownEl.classList.add('warning');
+
+                if (timeLeft <= 0) {
+                    stopAttendanceCountdown();
+                    showToast(`Mark ${currentAttendanceMark} ended - Attendance closed`);
+                    markAbsentAfterTimeout();
+                    markedThisMark.clear();
+                    saveData();
+                }
+            }, 1000);
+        }
+
+        function stopAttendanceCountdown() {
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+            }
+            isAttendanceOpen = false;
+            if (countdownEl) {
+                countdownEl.classList.remove('active', 'warning');
+            }
+            saveData();
+        }
+
+        countdownEl.addEventListener('dblclick', () => {
+            if (isAttendanceOpen) {
+                stopAttendanceCountdown();
+                showToast(`Mark ${currentAttendanceMark} stopped manually`);
+                markAbsentAfterTimeout();
+            }
+        });
+
+        function markAbsentAfterTimeout() {
+            if (!currentAttendanceMark) return;
+            const markNum = currentAttendanceMark;
+            const rows = document.querySelectorAll('#student-table-body tr');
+            rows.forEach(row => {
+                const studentStartMark = parseInt(row.dataset.startMark || 1);
+                if (studentStartMark <= markNum) {
+                    const cell = row.cells[2 + markNum];
+                    if (cell && cell.innerHTML.trim() === '') {
+                        setMarkDisplay(cell, 0); 
+                        cell.title = `Absent on Mark ${markNum}`;
+                        cell.classList.add('mark-cell');
+                        cell.classList.remove('disabled');
+                        updateTotals(row);
+                    }
+                }
+            });
+            saveData();
+        }
+
+        // Other Elements
+        const listOverlay = document.getElementById('list-overlay');
+        const exportContextMenu = document.getElementById('export-context-menu');
+        const exportMenuBtn = document.getElementById('export-menu-btn');
+        const regContextMenu = document.getElementById('reg-context-menu');
+        const regMenuBtn = document.getElementById('register-menu-btn');
+        const qrHiddenInput = document.getElementById('qr-hidden-input');
+        const processImage = document.getElementById('process-image');
+        const formModal = document.getElementById('form-modal');
+        const studentForm = document.getElementById('student-form');
+        const tableBody = document.getElementById('student-table-body');
+        const genderBtns = document.querySelectorAll('.gender-btn');
+        const genderInput = document.getElementById('gender');
+        const detailPopup = document.getElementById('detail-popup');
+        const popupDeleteBtn = document.getElementById('popup-delete-btn');
+        const confirmModal = document.getElementById('confirm-modal');
+        const confirmStudentName = document.getElementById('confirm-student-name');
+        const confirmYesBtn = document.getElementById('confirm-yes-btn');
+        const confirmNoBtn = document.getElementById('confirm-no-btn');
+        const settingsPanel = document.getElementById('settings-panel');
+        const settingsCloseBtn = document.getElementById('settings-close-btn');
+        const settingBtn = document.getElementById('setting-btn');
+        const optHistory = document.getElementById('opt-history');
+        const historyModal = document.getElementById('history-modal');
+        const historyCloseBtn = document.getElementById('history-close-btn');
+        const historyListContainer = document.getElementById('history-list-container');
+        const moveHistoryBtn = document.getElementById('move-history-btn');
+        const historyViewModal = document.getElementById('history-view-modal');
+        const historyViewCloseBtn = document.getElementById('history-view-close-btn');
+        const historyViewTitle = document.getElementById('h-view-title');
+        const historyTableContainer = document.getElementById('history-table-container');
+        const titlePopupModal = document.getElementById('title-popup-modal');
+        const docPageTitleInput = document.getElementById('doc-page-title');
+        const docFileTitleInput = document.getElementById('doc-file-title');
+        const titleDownloadBtn = document.getElementById('title-download-btn');
+        const titleCancelBtn = document.getElementById('title-cancel-btn');
+        const cameraModal = document.getElementById('camera-modal');
+        const cameraFeed = document.getElementById('camera-feed');
+        const cameraCanvas = document.getElementById('camera-canvas');
+        let videoStream = null;
+        let isAttendanceScan = false;
+        let selectedDetailRow = null;
+        let pendingDeleteRow = null;
+        let afterConfirmAction = null;
+        let currentExportType = 'docx'; 
+
+        // Load Data on Start
+        window.addEventListener('load', loadData);
+
+        // Clear Data Button Logic
+        document.getElementById('opt-clear-data').addEventListener('click', () => {
+            if(confirm("Are you sure you want to delete ALL data?")) {
+                localStorage.removeItem('attendanceData');
+                localStorage.removeItem('attendanceState');
+                tableBody.innerHTML = '';
+                currentAttendanceMark = null;
+                markedThisMark.clear();
+                showToast("Data Reset Complete");
+                settingsPanel.classList.remove('active');
+            }
+        });
+
+        // Helpers
+        function getCurrentMaxAttendanceMark() {
+            let maxMark = 0;
+            const rows = tableBody.querySelectorAll('tr');
+            rows.forEach(row => {
+                for (let mark = 1; mark <= 26; mark++) {
+                    const cell = row.cells[2 + mark];
+                    if (cell && cell.textContent.trim() !== '') {
+                        if (mark > maxMark) maxMark = mark;
+                    }
+                }
+            });
+            return maxMark;
+        }
+
+        function performMoveToHistory() {
+            const rows = tableBody.querySelectorAll('tr');
+            if (rows.length === 0) { showToast("No students to move."); return; }
+            showToast("Archiving Marks...");
+            const dataToSave = [];
+            rows.forEach(row => {
+                const student = {
+                    name: row.cells[1].textContent, gender: row.cells[2].textContent, marks: [],
+                    total: row.cells[29].textContent, percent: row.cells[30].textContent,
+                    church: row.dataset.church, christ: row.dataset.christ, phone: row.dataset.phone
+                };
+                for(let i=1; i<=26; i++) student.marks.push(row.cells[2+i].textContent.trim());
+                dataToSave.push(student);
+            });
+            let history = JSON.parse(localStorage.getItem('attendanceHistory') || '[]');
+            const newEntry = {
+                id: Date.now(),
+                title: `List ${new Date().toLocaleDateString('en-GB')}`,
+                date: new Date().toISOString(),
+                count: dataToSave.length,
+                data: dataToSave
+            };
+            history.unshift(newEntry);
+            if(history.length > 15) history.pop();
+            localStorage.setItem('attendanceHistory', JSON.stringify(history));
+
+            // Clear Marks Only
+            rows.forEach(row => {
+                for(let i=3; i<=28; i++) {
+                    row.cells[i].innerHTML = '';
+                    row.cells[i].classList.remove('mark-cell', 'disabled');
+                    row.cells[i].dataset.value = '';
+                }
+                row.cells[29].textContent = '0';
+                row.cells[30].textContent = '0%';
+            });
+            
+            currentAttendanceMark = null;
+            markedThisMark.clear();
+            isAttendanceOpen = false;
+            stopAttendanceCountdown();
+            saveData(); // Save cleared marks
+            showToast("Marks moved to History! Students kept.");
+        }
+
+        function loadHistory() {
+            const history = JSON.parse(localStorage.getItem('attendanceHistory') || '[]');
+            historyListContainer.innerHTML = '';
+            if (history.length === 0) {
+                historyListContainer.innerHTML = '<div style="text-align:center; color:#aaa; margin-top:50px; grid-column: 1/-1;">No history found.</div>';
+                return;
+            }
+            history.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'history-item';
+                div.innerHTML = `
+                    <div class="history-item-info">
+                        <span class="history-item-title">${item.title}</span>
+                        <span class="history-item-date">${new Date(item.date).toLocaleString()}</span>
+                        <span class="history-item-count">${item.count} Students</span>
+                    </div>
+                    <div class="history-item-actions">
+                        <button class="history-action-btn h-view" data-id="${item.id}"><i class="fa-solid fa-eye"></i> View</button>
+                        <button class="history-action-btn h-download" data-id="${item.id}"><i class="fa-solid fa-download"></i></button>
+                        <button class="history-action-btn h-delete" data-id="${item.id}"><i class="fa-solid fa-trash"></i></button>
+                    </div>`;
+                
+                div.querySelector('.h-view').addEventListener('click', (e) => { e.stopPropagation(); viewHistoryItem(item.id); });
+                div.querySelector('.h-delete').addEventListener('click', (e) => { e.stopPropagation(); deleteHistoryItem(item.id); });
+                div.querySelector('.h-download').addEventListener('click', (e) => { e.stopPropagation(); downloadHistoryItem(item.id); });
+                historyListContainer.appendChild(div);
+            });
+        }
+
+        function deleteHistoryItem(id) {
+            let history = JSON.parse(localStorage.getItem('attendanceHistory') || '[]');
+            history = history.filter(h => h.id !== id);
+            localStorage.setItem('attendanceHistory', JSON.stringify(history));
+            loadHistory();
+            showToast("History deleted");
+        }
+
+        function viewHistoryItem(id) {
+            const history = JSON.parse(localStorage.getItem('attendanceHistory') || '[]');
+            const item = history.find(h => h.id === id);
+            if (!item) return;
+            historyViewTitle.textContent = item.title;
+            let tableHTML = `<table id="main-table" style="width: max-content; min-width: 100%;"><thead><tr><th>#</th><th>Full Name</th><th>Gender</th><th>M1</th><th>M2</th><th>M3</th><th>M4</th><th>M5</th><th>M6</th><th>M7</th><th>M8</th><th>M9</th><th>M10</th><th>M11</th><th>M12</th><th>M13</th><th>M14</th><th>M15</th><th>M16</th><th>M17</th><th>M18</th><th>M19</th><th>M20</th><th>M21</th><th>M22</th><th>M23</th><th>M24</th><th>M25</th><th>M26</th><th>TM</th><th>%</th></tr></thead><tbody>`;
+            item.data.forEach((s, i) => {
+                tableHTML += `<tr><td>${i+1}</td><td style="text-align:left; padding-left:10px;">${s.name}</td><td>${s.gender}</td>${s.marks.map(m => `<td>${m}</td>`).join('')}<td style="color:#00ff9d; font-weight:bold;">${s.total}</td><td style="color:#00ff9d; font-weight:bold;">${s.percent}</td></tr>`;
+            });
+            tableHTML += `</tbody></table>`;
+            historyTableContainer.innerHTML = tableHTML;
+            historyViewModal.classList.add('active');
+        }
+
+        function downloadHistoryItem(id) {
+            const history = JSON.parse(localStorage.getItem('attendanceHistory') || '[]');
+            const item = history.find(h => h.id === id);
+            if (!item) return;
+            const headers = ['No', 'Full Name', 'Gender'];
+            for(let i=1; i<=26; i++) headers.push(`M${i}`);
+            headers.push('TM'); headers.push('%');
+            const data = item.data.map((s, i) => [i+1, s.name, s.gender, ...s.marks, s.total, s.percent]);
+            generateRealDocx(item.title, item.title, {headers, data});
+        }
+
+        function setMarkDisplay(cell, value) {
+            let color = '#fff';
+            let display = value;
+            switch(value) {
+                case 4: color = '#2196F3'; break;
+                case 3: color = '#00ff9d'; break;
+                case 2: color = '#FFEB3B'; break;
+                case 1: color = '#E91E63'; break;
+                case 0: color = '#ff4d4d'; break;
+            }
+            cell.innerHTML = `<span style="color:${color}; font-size:1.2rem; font-weight:bold;">${display}</span>`;
+            cell.dataset.value = value;
+        }
+
+        function updateTotals(row) {
+            let totalScore = 0;
+            const globalMaxMark = getCurrentMaxAttendanceMark();
+            for (let i = 3; i <= 28; i++) {
+                const cell = row.cells[i];
+                if (cell) totalScore += parseInt(cell.dataset.value || '0');
+            }
+            row.cells[29].textContent = totalScore;
+            row.cells[29].style.color = '#00ff9d';
+            const maxPossibleScore = globalMaxMark * 4;
+            let percentage = maxPossibleScore > 0 ? (totalScore / maxPossibleScore) * 100 : 0;
+            row.cells[30].textContent = percentage.toFixed(1) + '%';
+            row.cells[30].style.color = '#00ff9d';
+        }
+
+        function markNextAvailableMark(row, specificMark = null) {
+            if (!row) return;
+            let targetMark;
+            if (isAttendanceOpen && currentAttendanceMark) targetMark = currentAttendanceMark;
+            else if (specificMark !== null) targetMark = specificMark;
+            else {
+                const globalMaxMark = getCurrentMaxAttendanceMark();
+                targetMark = globalMaxMark + 1;
+            }
+            
+            if (targetMark > 26) { showToast("All 26 marks filled"); return; }
+
+            const cell = row.cells[2 + targetMark];
+            if (!cell) return;
+
+            const currentValue = cell.dataset.value;
+            const isEmpty = !currentValue; 
+
+            if (isEmpty || currentValue === '0') {
+                let timeLeft = parseInt(countdownNumber.textContent);
+                let score = 0;
+                if (timeLeft > 15) score = 4; else if (timeLeft > 10) score = 3; else if (timeLeft > 5) score = 2; else score = 1;
+                
+                setMarkDisplay(cell, score);
+                cell.title = `Mark ${targetMark}: Score ${score}`;
+                cell.classList.add('mark-cell');
+                cell.classList.remove('disabled');
+                showToast(`Mark ${targetMark}: Score ${score}`);
+                updateTotals(row);
+                saveData(); // Save after marking
+            } else {
+                showToast(`Already marked on Mark ${targetMark}`);
+            }
+        }
+
+        function findStudentRow(fullName) {
+            const normalized = fullName.toLowerCase().trim();
+            const rows = tableBody.querySelectorAll('tr');
+            for (const row of rows) {
+                if (row.cells[1].textContent.trim().toLowerCase() === normalized) return row;
+            }
+            return null;
+        }
+
+        function updateRowNumbers() {
+            const rows = tableBody.querySelectorAll('tr');
+            rows.forEach((row, i) => row.cells[0].textContent = i + 1);
+        }
+
+        function sortTableAndNumbers() {
+            const rows = Array.from(tableBody.querySelectorAll('tr'));
+            rows.sort((a, b) => a.cells[1].textContent.trim().toLowerCase().localeCompare(b.cells[1].textContent.trim().toLowerCase()));
+            rows.forEach(r => tableBody.appendChild(r));
+            updateRowNumbers();
+        }
+
+        function showConfirmPopup(row, name) {
+            pendingDeleteRow = row;
+            confirmStudentName.textContent = name || "this student";
+            confirmModal.classList.add('active');
+        }
+
+        function hideConfirmPopup() {
+            confirmModal.classList.remove('active');
+            pendingDeleteRow = null;
+            afterConfirmAction = null;
+        }
+
+        confirmYesBtn.onclick = () => { if (pendingDeleteRow && afterConfirmAction) afterConfirmAction(); hideConfirmPopup(); saveData(); };
+        confirmNoBtn.onclick = hideConfirmPopup;
+        confirmModal.onclick = (e) => { if (e.target === confirmModal) hideConfirmPopup(); };
+
+        tableBody.addEventListener('dblclick', function(e) {
+            const td = e.target.closest('td');
+            if (td && td.cellIndex === 1) {
+                const row = td.closest('tr');
+                selectedDetailRow = row;
+                document.getElementById('detail-church').textContent = row.dataset.church || "—";
+                document.getElementById('detail-christ').textContent = row.dataset.christ || "—";
+                document.getElementById('detail-fullname').textContent = row.dataset.fullname || "—";
+                document.getElementById('detail-gender').textContent = row.dataset.gender || "—";
+                document.getElementById('detail-phone').textContent = row.dataset.phone || "—";
+                document.getElementById('detail-date').textContent = row.dataset.date || "—";
+                document.getElementById('detail-time').textContent = row.dataset.time || "—";
+                detailPopup.classList.add('active');
+                return;
+            }
+
+            if (td && td.cellIndex >= 3 && td.cellIndex <= 28) {
+                const val = td.dataset.value;
+                const row = td.closest('tr');
+                const currentMark = td.cellIndex - 2;
+                const studentStartMark = parseInt(row.dataset.startMark || 1);
+
+                if (currentMark < studentStartMark) {
+                    showToast(`Cannot change Mark ${currentMark}. Started at ${studentStartMark}.`);
+                    return;
+                }
+
+                if (val === '0') {
+                    const globalMaxMark = getCurrentMaxAttendanceMark();
+                    const allowedMark = currentAttendanceMark || globalMaxMark;
+                    if (currentMark === allowedMark || isAttendanceOpen) {
+                        setMarkDisplay(td, 2);
+                        td.querySelector('span').style.color = '#fff'; 
+                        td.title = `Permission on Mark ${currentMark}`;
+                        updateTotals(row);
+                        saveData();
+                        showToast("Changed to Permission");
+                    } else {
+                        showToast("Can only change permission for latest mark.");
+                    }
+                }
+            }
+        });
+
+        document.getElementById('list-btn').addEventListener('click', function() {
+            listOverlay.classList.add('active');
+            animateButton(this);
+            regContextMenu.classList.remove('active');
+            exportContextMenu.classList.remove('active');
+        });
+
+        settingBtn.addEventListener('click', function() {
+            animateButton(this);
+            settingsPanel.classList.add('active');
+        });
+
+        settingsCloseBtn.addEventListener('click', () => settingsPanel.classList.remove('active'));
+
+        optHistory.addEventListener('click', () => {
+            settingsPanel.classList.remove('active');
+            loadHistory();
+            historyModal.classList.add('active');
+        });
+
+        historyCloseBtn.addEventListener('click', () => historyModal.classList.remove('active'));
+        historyModal.addEventListener('click', (e) => { if (e.target === historyModal) historyModal.classList.remove('active'); });
+
+        historyViewCloseBtn.addEventListener('click', () => historyViewModal.classList.remove('active'));
+        historyViewModal.addEventListener('click', (e) => { if (e.target === historyViewModal) historyViewModal.classList.remove('active'); });
+
+        moveHistoryBtn.addEventListener('click', () => performMoveToHistory());
+
+        toggleScanBtn.addEventListener('click', function() {
+            animateButton(this);
+            if (cameraModal.classList.contains('active')) closeCameraModal();
+            else { isAttendanceScan = true; openCameraModal(); }
+        });
+
+        fileBtn.addEventListener('click', function() {
+            animateButton(this);
+            isAttendanceScan = true;
+            qrHiddenInput.click();
+        });
+
+        document.getElementById('close-list').addEventListener('click', () => listOverlay.classList.remove('active'));
+
+        exportMenuBtn.addEventListener('click', function(e) {
+            e.stopPropagation(); e.preventDefault();
+            animateButton(this);
+            exportContextMenu.style.top = '80px'; exportContextMenu.style.right = '75px'; exportContextMenu.style.left = 'auto';   
+            exportContextMenu.classList.toggle('active');
+            regContextMenu.classList.remove('active');
+        });
+
+        regMenuBtn.addEventListener('click', function(e) {
+            e.stopPropagation(); e.preventDefault();
+            animateButton(this);
+            regContextMenu.style.top = '80px'; regContextMenu.style.right = '20px'; regContextMenu.style.left = 'auto';   
+            regContextMenu.classList.toggle('active');
+            exportContextMenu.classList.remove('active');
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!regContextMenu.contains(e.target) && e.target !== regMenuBtn) regContextMenu.classList.remove('active');
+            if (!exportContextMenu.contains(e.target) && e.target !== exportMenuBtn) exportContextMenu.classList.remove('active');
+            if (settingsPanel.classList.contains('active') && !settingsPanel.contains(e.target) && e.target !== settingBtn) settingsPanel.classList.remove('active');
+        });
+
+        document.getElementById('opt-manual').addEventListener('click', () => {
+            regContextMenu.classList.remove('active');
+            formModal.classList.add('active');
+            studentForm.reset();
+            genderBtns.forEach(b => b.classList.remove('selected'));
+            genderInput.value = "";
+        });
+
+        document.getElementById('opt-qr-file').addEventListener('click', () => {
+            regContextMenu.classList.remove('active');
+            isAttendanceScan = false;
+            qrHiddenInput.click();
+        });
+
+        document.getElementById('opt-qr-camera').addEventListener('click', () => {
+            regContextMenu.classList.remove('active');
+            isAttendanceScan = false;
+            openCameraModal();
+        });
+
+        document.getElementById('cancel-register').addEventListener('click', () => formModal.classList.remove('active'));
+
+        detailPopup.querySelector('.popup-close').addEventListener('click', () => detailPopup.classList.remove('active'));
+        detailPopup.addEventListener('click', (e) => { if (e.target === detailPopup) detailPopup.classList.remove('active'); });
+
+        popupDeleteBtn.addEventListener('click', () => {
+            if (!selectedDetailRow) return;
+            const name = selectedDetailRow.cells[1].textContent.trim();
+            showConfirmPopup(selectedDetailRow, name);
+            afterConfirmAction = () => {
+                selectedDetailRow.remove();
+                sortTableAndNumbers();
+                showToast("Student deleted");
+                detailPopup.classList.remove('active');
+                selectedDetailRow = null;
+            };
+        });
+
+        genderBtns.forEach(btn => {
+            btn.addEventListener('click', function() {
+                genderBtns.forEach(b => b.classList.remove('selected'));
+                this.classList.add('selected');
+                genderInput.value = this.dataset.value;
+            });
+        });
+
+        document.getElementById('opt-docx').addEventListener('click', () => {
+            exportContextMenu.classList.remove('active');
+            currentExportType = 'docx';
+            docPageTitleInput.value = "Title2";
+            docFileTitleInput.value = "Title2";
+            titlePopupModal.classList.add('active');
+            docPageTitleInput.focus();
+            docPageTitleInput.select();
+        });
+        
+        document.getElementById('opt-pdf').addEventListener('click', () => {
+            exportContextMenu.classList.remove('active');
+            currentExportType = 'pdf';
+            docPageTitleInput.value = "Title2";
+            docFileTitleInput.value = "Title2";
+            titlePopupModal.classList.add('active');
+            docPageTitleInput.focus();
+            docPageTitleInput.select();
+        });
+
+        titleCancelBtn.addEventListener('click', () => titlePopupModal.classList.remove('active'));
+
+        titleDownloadBtn.addEventListener('click', () => {
+            const pageTitle = docPageTitleInput.value.trim() || "Title2";
+            const fileTitle = docFileTitleInput.value.trim() || "Title2";
+            titlePopupModal.classList.remove('active');
+            if (currentExportType === 'docx') generateRealDocx(pageTitle, fileTitle);
+            else generatePdf(pageTitle, fileTitle);
+        });
+
+        docFileTitleInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') titleDownloadBtn.click(); });
+        titlePopupModal.addEventListener('click', (e) => { if (e.target === titlePopupModal) titlePopupModal.classList.remove('active'); });
+
+        function getTableData(forPdf = false) {
+            const rows = tableBody.querySelectorAll('tr');
+            if (rows.length === 0) return null;
+            const globalMaxMark = getCurrentMaxAttendanceMark();
+            const maxMark = Math.max(globalMaxMark, 1);
+            const headers = ['No', 'Full Name', 'Gender'];
+            for (let i = 1; i <= maxMark; i++) headers.push(`M${i}`);
+            headers.push('TM'); headers.push('%');
+            const data = [];
+            rows.forEach((row, index) => {
+                const rowData = [String(index + 1), row.cells[1].textContent.trim(), row.cells[2].textContent.trim()];
+                for (let m = 1; m <= maxMark; m++) rowData.push(row.cells[2 + m].textContent.trim() || ''); 
+                rowData.push(row.cells[29].textContent.trim());
+                rowData.push(row.cells[30].textContent.trim());
+                data.push(rowData);
+            });
+            return { headers, data, maxMark };
+        }
+
+        function generateRealDocx(docTitle, fileTitle, preCompiledData = null) {
+            try {
+                const tableData = preCompiledData || getTableData(false);
+                if (!tableData) { showToast("No data to export"); return; }
+                const { headers, data, maxMark } = tableData;
+                const colWidths = headers.map(h => { if (h === "No") return 300; if (h === "Full Name") return 2500; if (h === "TM") return 600; if (h === "%") return 600; return 450; });
+                const orientation = (maxMark || headers.length) <= 12 ? 'portrait' : 'landscape';
+                let pageWidth, pageHeight;
+                if (orientation === 'portrait') { pageWidth = 11906; pageHeight = 16838; } else { pageWidth = 16838; pageHeight = 11906; }
+                let headerCells = headers.map((h, i) => {
+                    let bg = "3C0028", color = "E6B800";
+                    if (h === "TM" || h === "%") { bg = "E6B800"; color = "3C0028"; }
+                    return `<w:tc><w:tcPr><w:tcW w:w="${colWidths[i]}" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="${bg}"/></w:tcPr><w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/><w:color w:val="${color}"/></w:rPr><w:t>${escapeXml(h)}</w:t></w:r></w:p></w:tc>`;
+                }).join('');
+                let dataRows = data.map(row => {
+                    let cells = row.map((cell, i) => {
+                        let align = (i === 1) ? "left" : "center";
+                        return `<w:tc><w:tcPr><w:tcW w:w="${colWidths[i]}" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="FFFFFF"/></w:tcPr><w:p><w:pPr><w:jc w:val="${align}"/></w:pPr><w:r><w:rPr><w:color w:val="000000"/></w:rPr><w:t>${escapeXml(cell)}</w:t></w:r></w:p></w:tc>`;
+                    }).join('');
+                    return `<w:tr>${cells}</w:tr>`;
+                }).join('');
+                const gridCols = colWidths.map(w => `<w:gridCol w:w="${w}"/>`).join('\n');
+                const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="36"/></w:rPr><w:t>${escapeXml(docTitle)}</w:t></w:r></w:p><w:p/><w:tbl><w:tblPr><w:jc w:val="center"/><w:tblW w:w="0" w:type="auto"/><w:tblBorders><w:top w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:left w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:bottom w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:right w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:insideH w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:insideV w:val="single" w:sz="4" w:space="0" w:color="000000"/></w:tblBorders></w:tblPr><w:tblGrid>${gridCols}</w:tblGrid><w:tr>${headerCells}</w:tr>${dataRows}</w:tbl><w:sectPr><w:pgSz w:w="${pageWidth}" w:h="${pageHeight}" w:orient="${orientation}"/><w:pgMar w:top="720" w:right="720" w:bottom="720" w:left="720" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr></w:body></w:document>`;
+                const contentTypesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`;
+                const relsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`;
+                const files = [{ name: "[Content_Types].xml", content: contentTypesXml }, { name: "_rels/.rels", content: relsXml }, { name: "word/document.xml", content: documentXml }];
+                const blob = createZip(files);
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `${fileTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${new Date().toISOString().slice(0, 10)}.docx`;
+                document.body.appendChild(link); link.click(); document.body.removeChild(link);
+                showToast("DOCX Downloaded!");
+            } catch (error) { console.error("DOCX Error:", error); showToast("Error generating DOCX"); }
+        }
+
+        function generatePdf(pageTitle, fileTitle) {
+            const { jsPDF } = window.jspdf;
+            const tableData = getTableData(true);
+            if (!tableData) { showToast("No data to export"); return; }
+            const { headers, data, maxMark } = tableData;
+            const orientation = maxMark <= 12 ? 'p' : 'l';
+            const doc = new jsPDF({ orientation: orientation, unit: 'mm', format: 'a4' });
+            doc.setFontSize(18);
+            doc.setTextColor(60, 0, 40);
+            doc.text(pageTitle, doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
+            const colWidths = headers.map(h => { if (h === "No") return 5; if (h === "Full Name") return 44; if (h === "TM" || h === "%") return 10; return 8; });
+            doc.autoTable({
+                head: [headers], body: data, startY: 25, theme: 'grid',
+                headStyles: { fillColor: [60, 0, 40], textColor: [230, 184, 0], fontStyle: 'bold', halign: 'center', fontSize: 8, cellPadding: 2 },
+                columnStyles: { 0: { cellWidth: 5 }, 1: { cellWidth: 44, halign: 'left' }, ...(()=>{ let s={}; for(let i=2; i < headers.length-2; i++) s[i] = { cellWidth: 8, halign: 'center' }; return s; })(), [headers.length-2]: { fillColor: [230, 184, 0], textColor: [60, 0, 40], fontStyle: 'bold', cellWidth: 10, halign: 'center' }, [headers.length-1]: { fillColor: [230, 184, 0], textColor: [60, 0, 40], fontStyle: 'bold', cellWidth: 10, halign: 'center' } },
+                styles: { font: 'helvetica', fontSize: 7, cellPadding: 1.5, lineColor: [0, 0, 0], lineWidth: 0.1 },
+                margin: { top: 20, left: 5, right: 5 }
+            });
+            doc.save(`${fileTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${new Date().toISOString().slice(0, 10)}.pdf`);
+            showToast("PDF Downloaded!");
+        }
+
+        function escapeXml(str) { return str.toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;'); }
+        
+        function createZip(files) {
+            const encoder = new TextEncoder(); const parts = []; const centralDir = []; let offset = 0;
+            files.forEach(file => {
+                const content = encoder.encode(file.content); const name = encoder.encode(file.name); const date = new Date();
+                const dosTime = ((date.getHours() << 11) | (date.getMinutes() << 5) | (date.getSeconds() >> 1));
+                const dosDate = (((date.getFullYear() - 1980) << 9) | ((date.getMonth() + 1) << 5) | date.getDate());
+                const header = new Uint8Array(30); const view = new DataView(header.buffer);
+                view.setUint32(0, 0x04034b50, true); view.setUint16(4, 20, true); view.setUint16(6, 0x0800, true); view.setUint16(8, 0, true); view.setUint16(10, dosTime, true); view.setUint16(12, dosDate, true);
+                view.setUint32(14, crc32(content), true); view.setUint32(18, content.length, true); view.setUint32(22, content.length, true); view.setUint16(26, name.length, true); view.setUint16(28, 0, true);
+                parts.push(header); parts.push(name); parts.push(content);
+                const cdHeader = new Uint8Array(46); const cdView = new DataView(cdHeader.buffer);
+                cdView.setUint32(0, 0x02014b50, true); cdView.setUint16(4, 20, true); cdView.setUint16(6, 20, true); cdView.setUint16(8, 0x0800, true); cdView.setUint16(10, 0, true); cdView.setUint16(12, dosTime, true); cdView.setUint16(14, dosDate, true);
+                cdView.setUint32(16, crc32(content), true); cdView.setUint32(20, content.length, true); cdView.setUint32(24, content.length, true); cdView.setUint16(28, name.length, true); cdView.setUint16(30, 0, true); cdView.setUint16(32, 0, true); cdView.setUint16(34, 0, true); cdView.setUint16(36, 0, true);
+                cdView.setUint32(38, 0, true); cdView.setUint32(42, offset, true);
+                centralDir.push(cdHeader); centralDir.push(name);
+                offset += 30 + name.length + content.length;
+            });
+            const cdOffset = offset; let cdSize = 0;
+            centralDir.forEach(p => { parts.push(p); cdSize += p.length; });
+            const eocd = new Uint8Array(22); const eocdView = new DataView(eocd.buffer);
+            eocdView.setUint32(0, 0x06054b50, true); eocdView.setUint16(4, 0, true); eocdView.setUint16(6, 0, true);
+            eocdView.setUint16(8, files.length, true); eocdView.setUint16(10, files.length, true); eocdView.setUint32(12, cdSize, true);
+            eocdView.setUint32(16, cdOffset, true); eocdView.setUint16(20, 0, true);
+            parts.push(eocd);
+            return new Blob(parts, { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+        }
+
+        function crc32(data) {
+            const table = new Uint32Array(256);
+            for (let i = 0; i < 256; i++) { let c = i; for (let j = 0; j < 8; j++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1); table[i] = c; }
+            let crc = 0xFFFFFFFF;
+            for (let i = 0; i < data.length; i++) crc = (crc >>> 8) ^ table[(crc ^ data[i]) & 0xFF];
+            return (crc ^ 0xFFFFFFFF) >>> 0;
+        }
+
+        // --- CAMERAS & QR ---
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') {
+                listOverlay.classList.remove('active'); formModal.classList.remove('active'); regContextMenu.classList.remove('active'); exportContextMenu.classList.remove('active');
+                detailPopup.classList.remove('active'); titlePopupModal.classList.remove('active'); settingsPanel.classList.remove('active'); historyModal.classList.remove('active'); historyViewModal.classList.remove('active'); closeCameraModal();
+                if (confirmModal.classList.contains('active')) hideConfirmPopup();
+            }
+        });
+
+        async function openCameraModal() {
+            cameraModal.classList.add('active');
+            toggleScanBtn.classList.add('camera-running');
+            toggleScanBtn.innerHTML = iconStop;
+            toggleScanBtn.title = "Stop Camera";
+            try {
+                videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+                cameraFeed.srcObject = videoStream;
+                startCameraScanning();
+            } catch (err) {
+                console.error(err);
+                showToast("Error accessing camera");
+                closeCameraModal();
+            }
+        }
+
+        function closeCameraModal() {
+            if (videoStream) { videoStream.getTracks().forEach(track => track.stop()); videoStream = null; }
+            cameraModal.classList.remove('active');
+            toggleScanBtn.classList.remove('camera-running');
+            toggleScanBtn.innerHTML = iconCamera;
+            toggleScanBtn.title = "Open Camera";
+        }
+
+        let cameraScanInterval = null;
+        function startCameraScanning() {
+            if (cameraScanInterval) clearInterval(cameraScanInterval);
+            const ctx = cameraCanvas.getContext('2d');
+            cameraScanInterval = setInterval(() => {
+                if (!cameraModal.classList.contains('active') || !videoStream) { clearInterval(cameraScanInterval); return; }
+                if (cameraFeed.readyState === cameraFeed.HAVE_ENOUGH_DATA) {
+                    cameraCanvas.height = cameraFeed.videoHeight; cameraCanvas.width = cameraFeed.videoWidth;
+                    ctx.drawImage(cameraFeed, 0, 0, cameraCanvas.width, cameraCanvas.height);
+                    const imageData = ctx.getImageData(0, 0, cameraCanvas.width, cameraCanvas.height);
+                    const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "dontInvert" });
+                    if (code) { clearInterval(cameraScanInterval); handleQRData(code.data); }
+                }
+            }, 500);
+        }
+
+        function handleQRData(text) {
+            const data = parseQRData(text);
+            const first = data.first?.trim() || "";
+            const last = data.last?.trim() || "";
+            const fullName = `${first} ${last}`.trim();
+            const fullNameLower = fullName.toLowerCase();
+
+            if (!first || !last) {
+                showToast("Invalid QR Data");
+                if (cameraModal.classList.contains('active')) startCameraScanning();
+                return;
+            }
+
+            const existingRow = findStudentRow(fullName);
+
+            if (existingRow) {
+                if (isAttendanceScan) {
+                    const globalMaxMark = getCurrentMaxAttendanceMark();
+                    if (isAttendanceOpen && currentAttendanceMark) {
+                        if (!markedThisMark.has(fullNameLower)) {
+                            markNextAvailableMark(existingRow);
+                            markedThisMark.add(fullNameLower);
+                            showToast(`Scanned: ${fullName}`);
+                        } else { showToast(`Already scanned for Mark ${currentAttendanceMark}`); }
+                    } else {
+                        const nextMark = globalMaxMark + 1;
+                        if (nextMark > 26) { showToast("All 26 marks filled"); if (cameraModal.classList.contains('active')) startCameraScanning(); return; }
+                        currentAttendanceMark = nextMark;
+                        markedThisMark.clear();
+                        startAttendanceCountdown();
+                        markNextAvailableMark(existingRow);
+                        markedThisMark.add(fullNameLower);
+                        showToast(`Scanned: ${fullName}`);
+                    }
+                    if (cameraModal.classList.contains('active')) closeCameraModal();
+                } else {
+                    showToast("Student already registered!");
+                    if (cameraModal.classList.contains('active')) startCameraScanning();
+                }
+            } else {
+                if (isAttendanceScan) {
+                    showToast("New student? Use registration menu");
+                    if (cameraModal.classList.contains('active')) startCameraScanning();
+                    return;
+                } else {
+                    showToast("New Student Detected");
+                    if (cameraModal.classList.contains('active')) closeCameraModal();
+                    formModal.classList.add('active');
+                    studentForm.reset();
+                    genderBtns.forEach(b => b.classList.remove('selected'));
+                    genderInput.value = "";
+                    document.getElementById('church-name').value = data.church || "";
+                    document.getElementById('christ-name').value = data.christ || "";
+                    document.getElementById('first-name').value = first;
+                    document.getElementById('last-name').value = last;
+                    document.getElementById('phone').value = data.phone || "";
+                    if (data.gender === "Male" || data.gender === "Female") {
+                        const btn = document.querySelector(`.gender-btn[data-value="${data.gender}"]`);
+                        if (btn) { btn.classList.add('selected'); genderInput.value = data.gender; }
+                    }
+                }
+            }
+        }
+
+        qrHiddenInput.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            showToast("Processing image...");
+            const url = URL.createObjectURL(file);
+            processImage.src = url;
+            processImage.onload = async () => {
+                try {
+                    let text = null;
+                    if ('BarcodeDetector' in window) {
+                        try {
+                            const detector = new BarcodeDetector({formats: ['qr_code']});
+                            const barcodes = await detector.detect(processImage);
+                            if (barcodes.length > 0) text = barcodes[0].rawValue.trim();
+                        } catch (e) {}
+                    }
+                    if (!text) {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        canvas.width = processImage.naturalWidth;
+                        canvas.height = processImage.naturalHeight;
+                        ctx.drawImage(processImage, 0, 0);
+                        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                        const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "dontInvert" });
+                        if (code && code.data) text = code.data.trim();
+                    }
+                    URL.revokeObjectURL(url);
+                    qrHiddenInput.value = "";
+                    if (!text) { showToast("No QR code found"); return; }
+                    handleQRData(text);
+                } catch (err) {
+                    console.error("Scan error:", err);
+                    showToast("Error processing image");
+                    URL.revokeObjectURL(url);
+                    qrHiddenInput.value = "";
+                }
+            };
+        };
+
+        function parseQRData(text) {
+            const data = { church: "", christ: "", first: "", last: "", gender: "", phone: "" };
+            const parts = text.split(/[\n|]/).map(p => p.trim()).filter(p => p);
+            for (const part of parts) {
+                const lower = part.toLowerCase();
+                if (lower.includes("church")) data.church = part.split(/[:=]/)[1]?.trim() || part;
+                else if (lower.includes("christ") || lower.includes("middle") || lower.includes("christain")) data.christ = part.split(/[:=]/)[1]?.trim() || part;
+                else if (lower.includes("first")) data.first = part.split(/[:=]/)[1]?.trim() || part;
+                else if (lower.includes("last") || lower.includes("surname")) data.last = part.split(/[:=]/)[1]?.trim() || part;
+                else if (lower.includes("gender") || lower.startsWith("m") || lower.startsWith("f")) data.gender = part.split(/[:=]/)[1]?.trim() || part;
+                else if (lower.includes("phone") || lower.includes("tel") || /^\+?\d{9,}$/.test(part)) data.phone = part.split(/[:=]/)[1]?.trim() || part;
+            }
+            if (!data.church && parts.length >= 4) {
+                data.church = parts[0] || "";
+                data.christ = parts[1] || "";
+                data.first = parts[2] || "";
+                data.last = parts[3] || "";
+                data.gender = parts[4] ? parts[4].charAt(0).toUpperCase() + parts[4].slice(1).toLowerCase() : "";
+                data.phone = parts[5] || "";
+            }
+            if (data.gender) {
+                const g = data.gender.toLowerCase();
+                data.gender = (g.includes("male") || g === "m") ? "Male" : (g.includes("female") || g === "f") ? "Female" : "";
+            }
+            return data;
+        }
+
+        studentForm.onsubmit = function(e) {
+            e.preventDefault();
+            const church = document.getElementById('church-name').value.trim();
+            const christ = document.getElementById('christ-name').value.trim();
+            const first = document.getElementById('first-name').value.trim();
+            const last = document.getElementById('last-name').value.trim();
+            const gender = genderInput.value;
+            const phone = document.getElementById('phone').value.trim();
+
+            if (!first || !last || !gender) { showToast("Please fill required fields!"); return; }
+
+            const fullNameLower = `${first} ${last}`.toLowerCase();
+            if (findStudentRow(fullNameLower)) { showToast("This name is already registered!"); return; }
+
+            const now = new Date();
+            const regDate = now.toLocaleDateString('en-GB');
+            const regTime = now.toLocaleTimeString('en-US', { hour12:false, hour:'2-digit', minute:'2-digit' });
+            const currentGlobalMaxMark = getCurrentMaxAttendanceMark();
+            const startMark = currentGlobalMaxMark + 1;
+
+            const row = document.createElement('tr');
+            let marksHTML = '';
+            for (let i = 1; i <= 26; i++) marksHTML += '<td></td>';
+
+            row.innerHTML = `<td></td><td>${first} ${last}</td><td>${gender.charAt(0)}</td>${marksHTML}<td>0</td><td>0%</td>`;
+            row.dataset.church = church; row.dataset.christ = christ; row.dataset.fullname = `${first} ${last}`;
+            row.dataset.gender = gender; row.dataset.phone = phone; row.dataset.date = regDate; row.dataset.time = regTime;
+            row.dataset.startMark = startMark;
+
+            for (let mark = 1; mark < startMark; mark++) {
+                const cell = row.cells[2 + mark];
+                setMarkDisplay(cell, 0); 
+                cell.title = `Absent on Mark ${mark} (Late Registration)`;
+                cell.classList.add('mark-cell', 'disabled');
+            }
+
+            tableBody.appendChild(row);
+            sortTableAndNumbers();
+            updateTotals(row);
+            saveData(); // Save Data
+            formModal.classList.remove('active');
+            showToast(`Student registered successfully (starts from Mark ${startMark})`);
+            studentForm.reset();
+            genderBtns.forEach(b => b.classList.remove('selected'));
+            genderInput.value = "";
+        };
+    </script>
+</body>
+</html>
